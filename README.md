@@ -81,4 +81,3 @@ It then opens full-screen like an app.
 
 - With Firebase, games logged with weak court Wi-Fi are saved on the phone and sync automatically when the connection comes back.
 - Players are stored by slot (1–4), so renaming someone in ⚙️ Settings keeps all their history.
-- After two games in a day, the Log tab marks the third matchup as **Up next**, following your rotation.
