@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d6b3a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pickleball">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥒</text></svg>">
+<title>Pickleball Tracker</title>
+<style>
+  :root {
+    --bg: #f2f5ee;
+    --card: #ffffff;
+    --text: #13201a;
+    --muted: #5a6a61;
+    --line: #d6dfd6;
+    --brand: #1d6b3a;
+    --brand-ink: #ffffff;
+    --accent: #d4f53c;
+    --accent-ink: #1b2a00;
+    --danger: #b3261e;
+    --gold: #c99a06;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1411;
+      --card: #18221d;
+      --text: #eef4ef;
+      --muted: #9badA2;
+      --line: #2b3a32;
+      --brand: #2f9a57;
+      --brand-ink: #ffffff;
+      --accent: #d4f53c;
+      --accent-ink: #1b2a00;
+      --danger: #ef6b62;
+      --gold: #f2c94c;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+
+  header {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background: var(--brand); color: var(--brand-ink);
+  }
+  header h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
+  .icon-btn {
+    width: 44px; height: 44px; border-radius: 12px; border: 0;
+    background: rgba(255,255,255,.15); color: inherit; font-size: 22px;
+  }
+  .banner {
+    margin: 12px 16px 0; padding: 10px 12px; border-radius: 10px;
+    background: #fff4c2; color: #4a3b00; font-size: 14px;
+  }
+  .banner.error { background: #fde2df; color: #6b130d; }
+
+  main { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .label {
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--muted); margin: 18px 2px 8px;
+  }
+
+  /* Matchups / team buttons */
+  .matchup {
+    position: relative;
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 8px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 10px; margin-bottom: 10px; box-shadow: var(--shadow);
+  }
+  .matchup.next { border-color: var(--brand); border-width: 2px; padding: 9px; }
+  .badge {
+    position: absolute; top: -9px; left: 14px; padding: 1px 8px; border-radius: 999px;
+    background: var(--brand); color: var(--brand-ink); font-size: 11px; font-weight: 700;
+  }
+  .vs { align-self: center; font-size: 13px; font-weight: 700; color: var(--muted); }
+  .team {
+    min-height: 64px; padding: 8px 6px; border-radius: 12px;
+    border: 2px solid var(--line); background: var(--bg);
+    font-weight: 650; font-size: 16px; line-height: 1.2; overflow-wrap: anywhere;
+    transition: transform .08s, background .15s, opacity .15s;
+  }
+  .team:active { transform: scale(.97); }
+  .team.sel { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .team.sel::before { content: "🏆 "; }
+  .team.lose { opacity: .55; text-decoration: line-through; }
+  .has-sel .matchup:not(.chosen) { opacity: .45; }
+
+  .pickle {
+    width: 100%; min-height: 60px; margin-top: 4px; border-radius: 14px;
+    border: 2px dashed var(--line); background: var(--card);
+    font-size: 18px; font-weight: 700;
+  }
+  .pickle small { font-weight: 500; color: var(--muted); font-size: 13px; }
+  .pickle[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border: 2px solid var(--accent); }
+  .pickle[aria-pressed="true"] small { color: var(--accent-ink); }
+
+  .save {
+    width: 100%; min-height: 64px; margin-top: 12px; border: 0; border-radius: 14px;
+    background: var(--brand); color: var(--brand-ink); font-size: 20px; font-weight: 800;
+  }
+  .save:disabled { opacity: .35; }
+
+  .date-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 14px; padding: 8px 10px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+  }
+  .date-row > span { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); white-space: nowrap; }
+  .date-row input {
+    flex: 1; min-width: 0; min-height: 48px; padding: 0 10px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--bg); font-weight: 700; font-size: 17px;
+  }
+  .date-row button {
+    min-height: 48px; padding: 0 12px; border-radius: 10px; border: 0;
+    background: var(--brand); color: var(--brand-ink); font-weight: 700;
+  }
+  .date-row.past { background: #fff1c7; border-color: #e8b931; }
+  .date-row.past > span { color: #6b4e00; }
+  @media (prefers-color-scheme: dark) {
+    .date-row.past { background: #3a2f0b; border-color: #a07c12; }
+    .date-row.past > span { color: #f2d27a; }
+  }
+
+  /* Cards & lists */
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .mini { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .mini > div {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    text-align: center; padding: 8px 4px;
+  }
+  .mini b { display: block; font-size: 24px; }
+  .mini span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .mini .lead b { color: var(--brand); }
+
+  .rank-row {
+    display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px;
+    padding: 12px 14px; border-top: 1px solid var(--line);
+  }
+  .rank-row:first-child { border-top: 0; }
+  .rank { font-size: 20px; text-align: center; font-weight: 800; color: var(--muted); }
+  .rank-row .name { font-weight: 700; font-size: 17px; overflow-wrap: anywhere; }
+  .rank-row .sub { font-size: 13px; color: var(--muted); }
+  .pts { text-align: right; font-size: 28px; font-weight: 800; line-height: 1; }
+  .pts small { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .chip {
+    min-height: 40px; padding: 0 14px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--card); font-weight: 600;
+  }
+  .chip.on { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  select.chip { appearance: none; -webkit-appearance: none; padding-right: 14px; max-width: 100%; }
+
+  .partner-card { margin-bottom: 10px; }
+  .partner-card h3 { margin: 0; padding: 10px 14px; font-size: 15px; border-bottom: 1px solid var(--line); }
+  .p-row {
+    display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center;
+    padding: 9px 14px; border-top: 1px solid var(--line); font-size: 15px;
+  }
+  .p-row:first-of-type { border-top: 0; }
+  .p-row .rec { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .p-row .pp { font-weight: 700; min-width: 48px; text-align: right; }
+
+  .day { margin-bottom: 14px; }
+  .day-head { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .day-head b { font-size: 16px; }
+  .day-head .sub { font-size: 13px; color: var(--muted); }
+  .game-row {
+    display: flex; width: 100%; align-items: center; gap: 8px; text-align: left;
+    padding: 12px 14px; border: 0; border-top: 1px solid var(--line); background: transparent;
+    min-height: 52px;
+  }
+  .game-row:first-of-type { border-top: 0; }
+  .game-row .txt { flex: 1; }
+  .game-row .w { font-weight: 700; }
+  .game-row .l { color: var(--muted); }
+  .game-row .chev { color: var(--muted); font-size: 18px; }
+  .tag {
+    font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    background: var(--accent); color: var(--accent-ink); white-space: nowrap;
+  }
+  .empty { text-align: center; color: var(--muted); padding: 28px 16px; }
+
+  .streak {
+    display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; vertical-align: 2px;
+    background: #ffe2c2; color: #7a3300;
+  }
+  .streak.cold { background: #dbe9ff; color: #133a73; }
+  @media (prefers-color-scheme: dark) {
+    .streak { background: #4a2a10; color: #ffc48a; }
+    .streak.cold { background: #16294a; color: #a9c8ff; }
+  }
+  .rec-row {
+    display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+    padding: 10px 14px; border-top: 1px solid var(--line);
+  }
+  .rec-row:first-child { border-top: 0; }
+  .rec-row .rl { font-weight: 650; }
+  .rec-row .sub { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .rec-row b { font-size: 20px; }
+  .mu-row {
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center;
+    padding: 12px 14px; border-top: 1px solid var(--line); font-size: 15px;
+  }
+  .mu-row:first-child { border-top: 0; }
+  .mu-row > span:first-child { text-align: right; }
+  .mu-row .lead { font-weight: 800; color: var(--brand); }
+  .mu-row .score { font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Tab bar */
+  nav.tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    background: var(--card); border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav.tabs button {
+    min-height: 64px; border: 0; background: transparent; font-size: 13px; font-weight: 650;
+    color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  }
+  nav.tabs button span { font-size: 22px; line-height: 1; }
+  nav.tabs button.on { color: var(--brand); }
+
+  /* Toast */
+  #toast {
+    position: fixed; left: 16px; right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 10;
+    max-width: 528px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 14px; border-radius: 14px; background: #13201a; color: #fff;
+    box-shadow: 0 6px 24px rgba(0,0,0,.25);
+    transform: translateY(20px); opacity: 0; pointer-events: none; transition: .2s;
+  }
+  #toast.show { transform: none; opacity: 1; pointer-events: auto; }
+  #toast button {
+    min-height: 40px; padding: 0 14px; border-radius: 10px; border: 0;
+    background: var(--accent); color: var(--accent-ink); font-weight: 800;
+  }
+
+  /* Dialogs */
+  dialog {
+    width: min(520px, calc(100vw - 24px)); max-height: calc(100dvh - 40px);
+    border: 0; border-radius: 18px; padding: 16px; background: var(--bg); color: var(--text);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  dialog h3 { margin: 0 0 12px; font-size: 19px; }
+  .field { display: block; margin-bottom: 10px; }
+  .field span { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+  .field input {
+    width: 100%; min-height: 48px; padding: 0 12px; border-radius: 12px;
+    border: 1px solid var(--line); background: var(--card);
+  }
+  .btn-row { display: flex; gap: 8px; margin-top: 14px; }
+  .btn {
+    flex: 1; min-height: 50px; border-radius: 12px; border: 1px solid var(--line);
+    background: var(--card); font-weight: 700;
+  }
+  .btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+  .btn.danger { color: var(--danger); }
+  .hint { font-size: 13px; color: var(--muted); margin: 6px 2px 0; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🥒 Pickleball Tracker</h1>
+  <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙️</button>
+</header>
+<div id="banner" class="banner" hidden></div>
+
+<main>
+  <!-- LOG GAME -->
+  <section class="view active" id="view-log">
+    <label class="date-row" id="dateRow">
+      <span>Playing on</span>
+      <input type="date" id="logDate" aria-label="Date played">
+      <button type="button" id="todayBtn" hidden>Today</button>
+    </label>
+    <h2 class="label">Tap the winning team</h2>
+    <div id="matchups"></div>
+    <button class="pickle" id="pickleBtn" aria-pressed="false">🥒 Pickled them! <small>(won 11-0 · 2 pts each)</small></button>
+    <button class="save" id="saveBtn" disabled>Save Game</button>
+    <h2 class="label" id="todayLabel">Today</h2>
+    <div class="mini" id="todayMini"></div>
+  </section>
+
+  <!-- STANDINGS -->
+  <section class="view" id="view-standings">
+    <div class="chips" id="filterChips"></div>
+    <h2 class="label" id="standingsLabel">Leaderboard</h2>
+    <div class="card" id="leaderboard"></div>
+    <div id="moreStats">
+      <h2 class="label">Records</h2>
+      <div class="card" id="records"></div>
+      <h2 class="label">Matchups</h2>
+      <div class="card" id="matchupRecords"></div>
+      <h2 class="label">Partner stats</h2>
+      <div id="partners"></div>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section class="view" id="view-history">
+    <h2 class="label">Game history <span style="text-transform:none;font-weight:500">· tap a game to edit</span></h2>
+    <div id="history"></div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button data-tab="log" class="on"><span>➕</span>Log Game</button>
+  <button data-tab="standings"><span>🏆</span>Standings</button>
+  <button data-tab="history"><span>📋</span>History</button>
+</nav>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- Edit game dialog -->
+<dialog id="editDlg">
+  <h3>Edit game</h3>
+  <div id="editMatchups"></div>
+  <button class="pickle" id="editPickle" aria-pressed="false">🥒 Pickle <small>(2 pts each)</small></button>
+  <label class="field" style="margin-top:12px"><span>Date</span><input type="date" id="editDate"></label>
+  <div class="btn-row">
+    <button class="btn danger" id="editDelete">Delete</button>
+    <button class="btn" id="editCancel">Cancel</button>
+    <button class="btn primary" id="editSave">Save</button>
+  </div>
+</dialog>
+
+<!-- Settings dialog -->
+<dialog id="settingsDlg">
+  <h3>Settings</h3>
+  <div id="nameFields"></div>
+  <div class="btn-row">
+    <button class="btn" id="settingsCancel">Cancel</button>
+    <button class="btn primary" id="settingsSave">Save names</button>
+  </div>
+  <hr>
+  <h3>Backup</h3>
+  <div class="btn-row" style="margin-top:0">
+    <button class="btn" id="exportBtn">Export JSON</button>
+    <button class="btn" id="importBtn">Import JSON</button>
+  </div>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+  <p class="hint" id="modeHint"></p>
+  <hr>
+  <h3>Reset</h3>
+  <button class="btn danger" id="resetBtn" style="width:100%">Reset all scores to zero</button>
+  <p class="hint">Deletes every game for everyone. Player names are kept, and a backup file downloads first.</p>
+</dialog>
+
+<script type="module">
+// ============================================================
+//  FIREBASE CONFIG — paste your project's config here (see README.md).
+//  While apiKey still starts with "PASTE", the app runs in local mode
+//  and only saves scores on the current device.
+// ============================================================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDp5jJ2UFhk75cobFNsO0ArTCRS0tQzY14",
+  authDomain: "pickleball-with-freemans.firebaseapp.com",
+  projectId: "pickleball-with-freemans",
+  storageBucket: "pickleball-with-freemans.firebasestorage.app",
+  messagingSenderId: "852391673143",
+  appId: "1:852391673143:web:2111944333f4dd41ea2eb2"
+};
+const FIREBASE_VERSION = "10.12.2";
+
+const DEFAULT_NAMES = ["Player 1", "Player 2", "Player 3", "Player 4"];
+// With four players there are exactly three ways to split into two teams.
+const MATCHUPS = [
+  [[0, 1], [2, 3]],
+  [[0, 2], [1, 3]],
+  [[0, 3], [1, 2]],
+];
+
+// ---------- helpers ----------
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const pad = (n) => String(n).padStart(2, "0");
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const fmtDate = (s) => new Date(s + "T00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+const fmtMonth = (ym) => new Date(ym + "-01T00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" });
+const teamKey = (t) => [...t].sort().join("-");
+const matchupIndex = (g) => MATCHUPS.findIndex((m) => m.some((t) => teamKey(t) === teamKey(g.winners)));
+const pointsFor = (g) => (g.pickle ? 2 : 1);
+
+// ---------- data stores ----------
+function makeLocalStore() {
+  const KEY = "pickleball.v1";
+  let data;
+  try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { data = {}; }
+  data.games ||= [];
+  const listeners = [];
+  const emit = () => listeners.forEach((f) => f());
+  const persist = () => {
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
+    emit();
+  };
+  return {
+    mode: "local",
+    subscribe(onGames, onNames) {
+      listeners.push(() => { onGames(data.games.map((g) => ({ ...g }))); onNames(data.names || null); });
+      emit();
+    },
+    addGame(g) { const id = uid(); data.games.push({ id, ...g }); persist(); return id; },
+    updateGame(id, patch) { const g = data.games.find((x) => x.id === id); if (g) Object.assign(g, patch); persist(); },
+    deleteGame(id) { data.games = data.games.filter((g) => g.id !== id); persist(); },
+    saveNames(names) { data.names = names; persist(); },
+    deleteAllGames() { data.games = []; persist(); },
+    importGames(games) {
+      for (const g of games) {
+        const i = data.games.findIndex((x) => x.id === g.id);
+        if (i >= 0) data.games[i] = g; else data.games.push(g);
+      }
+      persist();
+    },
+  };
+}
+
+async function makeFirestoreStore(onWriteError) {
+  const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}`;
+  const { initializeApp } = await import(`${base}/firebase-app.js`);
+  const fs = await import(`${base}/firebase-firestore.js`);
+  const app = initializeApp(FIREBASE_CONFIG);
+  // Local cache lets games be logged even with spotty court Wi-Fi; they sync when back online.
+  // Browsers with storage blocked (some private modes) get an in-memory cache instead.
+  let canPersist = false;
+  try { localStorage.setItem("pb.probe", "1"); localStorage.removeItem("pb.probe"); canPersist = !!window.indexedDB; } catch {}
+  const db = fs.initializeFirestore(app, {
+    localCache: canPersist
+      ? fs.persistentLocalCache({ tabManager: fs.persistentMultipleTabManager() })
+      : fs.memoryLocalCache(),
+  });
+  const gamesCol = fs.collection(db, "games");
+  const namesDoc = fs.doc(db, "meta", "players");
+  // Writes aren't awaited: the local snapshot updates instantly and the server ack can come later.
+  const write = (p) => { p.catch(onWriteError); };
+  return {
+    mode: "firebase",
+    subscribe(onGames, onNames, onError, onStatus) {
+      // Metadata changes tell us when data is confirmed by the server vs. only from the phone's cache.
+      fs.onSnapshot(gamesCol, { includeMetadataChanges: true }, (snap) => {
+        onGames(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        onStatus(!snap.metadata.fromCache);
+      }, onError);
+      fs.onSnapshot(namesDoc, (snap) => onNames(snap.exists() ? snap.data().names : null), onError);
+    },
+    addGame(g) { const ref = fs.doc(gamesCol); write(fs.setDoc(ref, g)); return ref.id; },
+    updateGame(id, patch) { write(fs.updateDoc(fs.doc(gamesCol, id), patch)); },
+    deleteGame(id) { write(fs.deleteDoc(fs.doc(gamesCol, id))); },
+    saveNames(names) { write(fs.setDoc(namesDoc, { names })); },
+    importGames(games) {
+      for (const { id, ...g } of games) write(fs.setDoc(fs.doc(gamesCol, id || uid()), g));
+    },
+    deleteAllGames(ids) {
+      // A Firestore batch holds at most 500 writes.
+      for (let i = 0; i < ids.length; i += 450) {
+        const batch = fs.writeBatch(db);
+        for (const id of ids.slice(i, i + 450)) batch.delete(fs.doc(gamesCol, id));
+        write(batch.commit());
+      }
+    },
+  };
+}
+
+// ---------- stats ----------
+function computeStats(games) {
+  const players = [0, 1, 2, 3].map((i) => ({ i, pts: 0, w: 0, l: 0, pickled: 0, gotPickled: 0 }));
+  const partners = [0, 1, 2, 3].map(() => [0, 1, 2, 3].map(() => ({ w: 0, l: 0, pts: 0 })));
+  for (const g of games) {
+    const pts = pointsFor(g);
+    const [a, b] = g.winners, [c, d] = g.losers;
+    for (const p of g.winners) {
+      players[p].pts += pts; players[p].w++;
+      if (g.pickle) players[p].pickled++;
+    }
+    for (const p of g.losers) {
+      players[p].l++;
+      if (g.pickle) players[p].gotPickled++;
+    }
+    for (const [x, y] of [[a, b], [b, a]]) { partners[x][y].w++; partners[x][y].pts += pts; }
+    for (const [x, y] of [[c, d], [d, c]]) partners[x][y].l++;
+  }
+  const pct = (r) => (r.w + r.l ? r.w / (r.w + r.l) : 0);
+  const ranked = [...players].sort((p, q) => q.pts - p.pts || pct(q) - pct(p) || q.w - p.w);
+  return { players, ranked, partners, pct };
+}
+
+// ---------- state ----------
+const state = {
+  names: [...DEFAULT_NAMES],
+  games: [],          // sorted newest first
+  sel: null,          // { winners, losers } on the Log tab
+  pickle: false,
+  logDate: null,      // date games are logged under; null = today (follows the clock past midnight)
+  filter: "today",    // "today" | "all" | "YYYY-MM-DD"
+  edit: null,         // { id, winners, losers, pickle }
+};
+let store;
+const logDate = () => state.logDate || todayStr();
+
+const nm = (i) => esc(state.names[i] || DEFAULT_NAMES[i]);
+const teamName = (t) => `${nm(t[0])} + ${nm(t[1])}`;
+
+// ---------- rendering ----------
+function renderMatchups(container, sel, nextIdx) {
+  container.classList.toggle("has-sel", !!sel);
+  container.innerHTML = MATCHUPS.map((m, mi) => {
+    const chosen = sel && m.some((t) => teamKey(t) === teamKey(sel.winners));
+    const btns = m.map((t, si) => {
+      const isWin = sel && teamKey(t) === teamKey(sel.winners);
+      const isLose = sel && teamKey(t) === teamKey(sel.losers);
+      return `<button class="team ${isWin ? "sel" : ""} ${isLose ? "lose" : ""}" data-m="${mi}" data-s="${si}">${teamName(t)}</button>`;
+    }).join('<span class="vs">vs</span>');
+    const next = !sel && mi === nextIdx;
+    return `<div class="matchup ${chosen ? "chosen" : ""} ${next ? "next" : ""}">${next ? '<span class="badge">Up next</span>' : ""}${btns}</div>`;
+  }).join("");
+}
+
+// The rotation cycles through the three matchups; suggest the one not used in the last two games.
+function nextMatchup() {
+  const day = state.games.filter((g) => g.date === logDate());
+  if (day.length < 2) return -1;
+  const a = matchupIndex(day[0]), b = matchupIndex(day[1]);
+  if (a === b || a < 0 || b < 0) return -1;
+  return [0, 1, 2].find((i) => i !== a && i !== b);
+}
+
+function renderLog() {
+  const day = logDate(), isToday = day === todayStr();
+  const dateInput = $("#logDate");
+  dateInput.max = todayStr();
+  if (dateInput.value !== day) dateInput.value = day;
+  $("#dateRow").classList.toggle("past", !isToday);
+  $("#todayBtn").hidden = isToday;
+
+  renderMatchups($("#matchups"), state.sel, nextMatchup());
+  $("#pickleBtn").setAttribute("aria-pressed", state.pickle);
+  const saveBtn = $("#saveBtn");
+  saveBtn.disabled = !state.sel;
+  saveBtn.textContent = state.sel
+    ? `Save: ${state.names[state.sel.winners[0]]} & ${state.names[state.sel.winners[1]]} win${state.pickle ? " 🥒" : ""}`
+    : "Save Game";
+
+  const dayGames = state.games.filter((g) => g.date === day);
+  const { players } = computeStats(dayGames);
+  const top = Math.max(...players.map((p) => p.pts));
+  $("#todayLabel").textContent = `${isToday ? "Today" : fmtDate(day)} · ${dayGames.length} game${dayGames.length === 1 ? "" : "s"}`;
+  $("#todayMini").innerHTML = players.map((p) =>
+    `<div class="${top > 0 && p.pts === top ? "lead" : ""}"><b>${p.pts}</b><span>${nm(p.i)}</span><br><span>${p.w}-${p.l}</span></div>`
+  ).join("");
+}
+
+// Filters: "today" | "month" (this month) | "all" | "m:YYYY-MM" (a month) | "YYYY-MM-DD" (a day)
+function filterInfo(f) {
+  const t = todayStr();
+  if (f === "all") return { title: "All time", match: () => true };
+  if (f === "today") return { title: "Today", match: (g) => g.date === t };
+  if (f === "month") return { title: "This month", match: (g) => g.date.startsWith(t.slice(0, 7)) };
+  if (f.startsWith("m:")) return { title: fmtMonth(f.slice(2)), match: (g) => g.date.startsWith(f.slice(2)) };
+  return { title: fmtDate(f), match: (g) => g.date === f };
+}
+
+// Streaks run in the order games were played. cur > 0 is a win streak, cur < 0 a losing streak.
+function computeStreaks(gamesNewestFirst) {
+  const cur = [0, 0, 0, 0], best = [0, 0, 0, 0];
+  for (const g of [...gamesNewestFirst].reverse()) {
+    for (const p of g.winners) { cur[p] = cur[p] > 0 ? cur[p] + 1 : 1; best[p] = Math.max(best[p], cur[p]); }
+    for (const p of g.losers) cur[p] = cur[p] < 0 ? cur[p] - 1 : -1;
+  }
+  return { cur, best };
+}
+
+function streakTag(n) {
+  if (n >= 2) return `<span class="streak">🔥 W${n}</span>`;
+  if (n <= -3) return `<span class="streak cold">🧊 L${-n}</span>`;
+  return "";
+}
+
+function renderRecords(games, players, best) {
+  const leaders = (vals) => {
+    const top = Math.max(...vals);
+    return top > 0 ? { top, who: vals.flatMap((v, i) => (v === top ? [i] : [])) } : null;
+  };
+  const row = (label, who, value) =>
+    `<div class="rec-row"><div><div class="rl">${label}</div><div class="sub">${who}</div></div><b>${value}</b></div>`;
+  const rows = [];
+  for (const [label, vals] of [
+    ["🔥 Longest win streak", best],
+    ["🥒 Most pickles", players.map((p) => p.pickled)],
+    ["😵 Got pickled most", players.map((p) => p.gotPickled)],
+  ]) {
+    const l = leaders(vals);
+    if (l) rows.push(row(label, l.who.map(nm).join(" & "), l.top));
+  }
+
+  // Team records: one entry per possible pair, keyed by teamKey.
+  const teams = new Map(MATCHUPS.flat().map((t) => [teamKey(t), { t, w: 0, l: 0 }]));
+  for (const g of games) { teams.get(teamKey(g.winners)).w++; teams.get(teamKey(g.losers)).l++; }
+  const played = [...teams.values()].filter((r) => r.w + r.l > 0);
+  const rate = (r) => r.w / (r.w + r.l);
+  const duo = played.sort((a, b) => rate(b) - rate(a) || b.w - a.w)[0];
+  if (duo && duo.w > 0) {
+    const tied = played.filter((r) => rate(r) === rate(duo) && r.w === duo.w);
+    rows.push(row("🤝 Best duo", tied.map((r) => teamName(r.t)).join(" · "), `${duo.w}-${duo.l}`));
+  }
+  $("#records").innerHTML = rows.join("");
+
+  $("#matchupRecords").innerHTML = MATCHUPS.map(([a, b]) => {
+    const ra = teams.get(teamKey(a)), rb = teams.get(teamKey(b));
+    return `<div class="mu-row">
+      <span class="${ra.w > rb.w ? "lead" : ""}">${teamName(a)}</span>
+      <span class="score">${ra.w} – ${rb.w}</span>
+      <span class="${rb.w > ra.w ? "lead" : ""}">${teamName(b)}</span>
+    </div>`;
+  }).join("");
+}
+
+function renderStandings() {
+  const dates = [...new Set(state.games.map((g) => g.date))].sort().reverse();
+  const months = [...new Set(dates.map((d) => d.slice(0, 7)))];
+  const isPicked = !["today", "month", "all"].includes(state.filter);
+  const opt = (v, label) => `<option value="${v}" ${state.filter === v ? "selected" : ""}>${label}</option>`;
+  $("#filterChips").innerHTML = `
+    <button class="chip ${state.filter === "today" ? "on" : ""}" data-filter="today">Today</button>
+    <button class="chip ${state.filter === "month" ? "on" : ""}" data-filter="month">This month</button>
+    <button class="chip ${state.filter === "all" ? "on" : ""}" data-filter="all">All time</button>
+    <select class="chip ${isPicked ? "on" : ""}" id="dateSelect" aria-label="Pick a month or date">
+      <option value="">📅 Pick month or date…</option>
+      <optgroup label="Months">${months.map((m) => opt(`m:${m}`, fmtMonth(m))).join("")}</optgroup>
+      <optgroup label="Days">${dates.map((d) => opt(d, fmtDate(d))).join("")}</optgroup>
+    </select>`;
+
+  const { title, match } = filterInfo(state.filter);
+  const games = state.games.filter(match);
+  const { players, ranked, partners, pct } = computeStats(games);
+  const { cur, best } = computeStreaks(games);
+  $("#standingsLabel").textContent = `Leaderboard · ${title} · ${games.length} game${games.length === 1 ? "" : "s"}`;
+
+  $("#moreStats").hidden = !games.length;
+  if (!games.length) {
+    $("#leaderboard").innerHTML = `<div class="empty">No games ${state.filter === "today" ? "logged today yet" : "for this period"}.</div>`;
+    return;
+  }
+
+  renderRecords(games, players, best);
+
+  const medals = ["🥇", "🥈", "🥉", ""];
+  let rank = 0;
+  $("#leaderboard").innerHTML = ranked.map((p, idx) => {
+    if (idx === 0 || p.pts !== ranked[idx - 1].pts) rank = idx;
+    const gp = p.w + p.l;
+    const pk = p.pickled || p.gotPickled ? ` · 🥒 ${p.pickled} given / ${p.gotPickled} taken` : "";
+    return `<div class="rank-row">
+      <div class="rank">${medals[rank] || rank + 1}</div>
+      <div><div class="name">${nm(p.i)}${streakTag(cur[p.i])}</div>
+        <div class="sub">${p.w}-${p.l}${gp ? ` · ${Math.round(pct(p) * 100)}%` : ""}${pk}</div></div>
+      <div class="pts">${p.pts}<small>pts</small></div>
+    </div>`;
+  }).join("");
+
+  $("#partners").innerHTML = [0, 1, 2, 3].map((i) => {
+    const rows = [0, 1, 2, 3].filter((j) => j !== i).map((j) => ({ j, ...partners[i][j] }));
+    const played = rows.filter((r) => r.w + r.l > 0);
+    const score = (r) => pct(r) * 1000 + r.pts;
+    let best = -1, worst = -1;
+    if (played.length >= 2) {
+      // Only flag a best/worst partner when it's a clear (untied) one.
+      const sorted = [...played].sort((a, b) => score(b) - score(a));
+      const n = sorted.length;
+      if (score(sorted[0]) > score(sorted[1])) best = sorted[0].j;
+      if (score(sorted[n - 1]) < score(sorted[n - 2])) worst = sorted[n - 1].j;
+    }
+    return `<div class="card partner-card"><h3>${nm(i)} with…</h3>${rows.map((r) => {
+      const gp = r.w + r.l;
+      const mark = r.j === best ? " 💪" : r.j === worst ? " 😬" : "";
+      return `<div class="p-row"><span>${nm(r.j)}${mark}</span>
+        <span class="rec">${r.w}-${r.l}${gp ? ` · ${Math.round(pct(r) * 100)}%` : ""}</span>
+        <span class="pp">${r.pts} pts</span></div>`;
+    }).join("")}</div>`;
+  }).join("");
+}
+
+function renderHistory() {
+  if (!state.games.length) {
+    $("#history").innerHTML = `<div class="card empty">No games yet. Log one on the ➕ tab.</div>`;
+    return;
+  }
+  const byDate = new Map();
+  for (const g of state.games) {
+    if (!byDate.has(g.date)) byDate.set(g.date, []);
+    byDate.get(g.date).push(g);
+  }
+  const dates = [...byDate.keys()].sort().reverse();
+  $("#history").innerHTML = dates.map((d) => {
+    const games = byDate.get(d);
+    const { ranked } = computeStats(games);
+    const totals = ranked.map((p) => `${nm(p.i)} ${p.pts}`).join(" · ");
+    return `<div class="card day">
+      <div class="day-head"><b>${fmtDate(d)}</b> <span class="sub">· ${games.length} game${games.length === 1 ? "" : "s"}</span>
+        <div class="sub">${totals}</div></div>
+      ${games.map((g) => `<button class="game-row" data-id="${esc(g.id)}">
+        <span class="txt"><span class="w">${teamName(g.winners)}</span> <span class="l">def. ${teamName(g.losers)}</span></span>
+        ${g.pickle ? '<span class="tag">🥒 Pickle</span>' : ""}<span class="chev">›</span>
+      </button>`).join("")}
+    </div>`;
+  }).join("");
+}
+
+function render() {
+  renderLog();
+  renderStandings();
+  renderHistory();
+}
+
+// ---------- toast ----------
+let toastTimer;
+function toast(msg, undo) {
+  const t = $("#toast");
+  t.innerHTML = `<span>${esc(msg)}</span>${undo ? "<button>Undo</button>" : ""}`;
+  if (undo) t.querySelector("button").onclick = () => { undo(); hideToast(); };
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, undo ? 6000 : 3000);
+}
+function hideToast() { $("#toast").classList.remove("show"); }
+
+function showBanner(msg, isError, kind = "") {
+  const b = $("#banner");
+  b.textContent = msg;
+  b.classList.toggle("error", !!isError);
+  b.dataset.kind = kind;
+  b.hidden = false;
+}
+function hideBanner(kind) {
+  const b = $("#banner");
+  if (b.dataset.kind === kind) b.hidden = true;
+}
+
+// ---------- events: tabs ----------
+document.querySelectorAll("nav.tabs button").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav.tabs button").forEach((b) => b.classList.toggle("on", b === btn));
+    document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === `view-${btn.dataset.tab}`));
+    window.scrollTo(0, 0);
+  });
+});
+
+// ---------- events: log game ----------
+function pickFromClick(e, current) {
+  const btn = e.target.closest(".team");
+  if (!btn) return undefined;
+  const m = MATCHUPS[+btn.dataset.m];
+  const winners = m[+btn.dataset.s], losers = m[1 - +btn.dataset.s];
+  if (current && teamKey(current.winners) === teamKey(winners)) return null; // tap again to clear
+  return { winners: [...winners], losers: [...losers] };
+}
+
+$("#matchups").addEventListener("click", (e) => {
+  const sel = pickFromClick(e, state.sel);
+  if (sel === undefined) return;
+  state.sel = sel;
+  renderLog();
+});
+
+$("#pickleBtn").addEventListener("click", () => {
+  state.pickle = !state.pickle;
+  renderLog();
+});
+
+$("#saveBtn").addEventListener("click", () => {
+  if (!state.sel) return;
+  const game = { ...state.sel, pickle: state.pickle, date: logDate(), createdAt: Date.now() };
+  const id = store.addGame(game);
+  const w = game.winners.map((i) => state.names[i]).join(" & ");
+  state.sel = null;
+  state.pickle = false;
+  renderLog();
+  navigator.vibrate?.(30);
+  const when = game.date === todayStr() ? "" : ` · ${new Date(game.date + "T00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  toast(`Saved — ${w} +${pointsFor(game)}${game.pickle ? " 🥒" : ""}${when}`, () => store.deleteGame(id));
+});
+
+$("#logDate").addEventListener("change", (e) => {
+  const v = e.target.value;
+  state.logDate = !v || v >= todayStr() ? null : v;
+  state.sel = null;
+  renderLog();
+});
+$("#todayBtn").addEventListener("click", (e) => {
+  e.preventDefault(); // the button sits inside the date row's <label>
+  state.logDate = null;
+  renderLog();
+});
+
+// ---------- events: standings filter ----------
+$("#filterChips").addEventListener("click", (e) => {
+  const f = e.target.closest("[data-filter]")?.dataset.filter;
+  if (f) { state.filter = f; renderStandings(); }
+});
+$("#filterChips").addEventListener("change", (e) => {
+  if (e.target.id === "dateSelect" && e.target.value) { state.filter = e.target.value; renderStandings(); }
+});
+
+// ---------- events: edit game ----------
+const editDlg = $("#editDlg");
+function renderEdit() {
+  renderMatchups($("#editMatchups"), state.edit, -1);
+  $("#editPickle").setAttribute("aria-pressed", state.edit.pickle);
+}
+$("#history").addEventListener("click", (e) => {
+  const id = e.target.closest(".game-row")?.dataset.id;
+  const g = state.games.find((x) => x.id === id);
+  if (!g) return;
+  state.edit = { id, winners: [...g.winners], losers: [...g.losers], pickle: !!g.pickle };
+  $("#editDate").value = g.date;
+  renderEdit();
+  editDlg.showModal();
+});
+$("#editMatchups").addEventListener("click", (e) => {
+  const sel = pickFromClick(e, null);
+  if (!sel) return;
+  Object.assign(state.edit, sel);
+  renderEdit();
+});
+$("#editPickle").addEventListener("click", () => { state.edit.pickle = !state.edit.pickle; renderEdit(); });
+$("#editCancel").addEventListener("click", () => editDlg.close());
+$("#editSave").addEventListener("click", () => {
+  const { id, winners, losers, pickle } = state.edit;
+  store.updateGame(id, { winners, losers, pickle, date: $("#editDate").value || todayStr() });
+  editDlg.close();
+  toast("Game updated");
+});
+$("#editDelete").addEventListener("click", () => {
+  if (!confirm("Delete this game?")) return;
+  const { id } = state.edit;
+  const g = state.games.find((x) => x.id === id);
+  store.deleteGame(id);
+  editDlg.close();
+  toast("Game deleted", g ? () => { const { id: _, ...rest } = g; store.importGames([{ id, ...rest }]); } : null);
+});
+
+// ---------- events: settings ----------
+const settingsDlg = $("#settingsDlg");
+$("#settingsBtn").addEventListener("click", () => {
+  $("#nameFields").innerHTML = state.names.map((n, i) =>
+    `<label class="field"><span>Player ${i + 1}</span><input maxlength="20" value="${esc(n)}" data-i="${i}" autocomplete="off"></label>`
+  ).join("");
+  $("#modeHint").textContent = store.mode === "firebase"
+    ? "Synced with Firebase — every phone sees the same scores."
+    : "Local mode — scores are only saved in this browser. See README.md to set up Firebase sync.";
+  settingsDlg.showModal();
+});
+$("#settingsCancel").addEventListener("click", () => settingsDlg.close());
+$("#settingsSave").addEventListener("click", () => {
+  const names = [...document.querySelectorAll("#nameFields input")].map((inp, i) => inp.value.trim() || DEFAULT_NAMES[i]);
+  store.saveNames(names);
+  settingsDlg.close();
+  toast("Names saved");
+});
+function downloadBackup() {
+  const blob = new Blob([JSON.stringify({ names: state.names, games: state.games }, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `pickleball-${todayStr()}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$("#exportBtn").addEventListener("click", downloadBackup);
+$("#resetBtn").addEventListener("click", () => {
+  const n = state.games.length;
+  if (!n) { alert("There are no games to reset. Everyone is already at zero."); return; }
+  if (!confirm(`Are you sure you want to reset all scores?\n\nThis deletes all ${n} game${n === 1 ? "" : "s"} for everyone, and every player goes back to 0.`)) return;
+  if (!confirm("Are you REALLY sure?\n\nThis can't be undone from the site. A backup file will download first so the games can be restored with Import JSON.")) return;
+  const saved = state.games.map((g) => ({ ...g }));
+  downloadBackup();
+  store.deleteAllGames(saved.map((g) => g.id));
+  settingsDlg.close();
+  toast(`All scores reset — ${n} game${n === 1 ? "" : "s"} deleted`, () => store.importGames(saved));
+});
+$("#importBtn").addEventListener("click", () => $("#importFile").click());
+$("#importFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    const games = (data.games || []).filter((g) =>
+      Array.isArray(g.winners) && Array.isArray(g.losers) && g.winners.length === 2 && g.losers.length === 2 && g.date);
+    if (!confirm(`Import ${games.length} games${data.names ? " and player names" : ""}? Games with matching IDs will be overwritten.`)) return;
+    store.importGames(games.map((g) => ({
+      id: g.id || uid(), winners: g.winners, losers: g.losers, pickle: !!g.pickle, date: g.date, createdAt: g.createdAt || Date.now(),
+    })));
+    if (Array.isArray(data.names) && data.names.length === 4) store.saveNames(data.names);
+    settingsDlg.close();
+    toast(`Imported ${games.length} games`);
+  } catch {
+    alert("That file isn't a valid Pickleball Tracker backup.");
+  }
+});
+
+// ---------- boot ----------
+async function boot() {
+  const onWriteError = (err) => showBanner(`Couldn't save to Firebase: ${err.message}`, true);
+  if (FIREBASE_CONFIG.apiKey.startsWith("PASTE")) {
+    store = makeLocalStore();
+    showBanner("Local mode — scores are only saved on this device. Add your Firebase config (see README) to share scores across phones.");
+  } else {
+    try {
+      store = await makeFirestoreStore(onWriteError);
+    } catch (err) {
+      store = makeLocalStore();
+      showBanner(`Couldn't connect to Firebase (${err.message}). Using local mode on this device.`, true);
+    }
+  }
+  // Give Firebase a few seconds to connect before warning that we're offline.
+  let online = store.mode !== "firebase", graceOver = false;
+  const updateConnBanner = () => {
+    if (online) hideBanner("offline");
+    else if (graceOver) showBanner("Not connected to the shared scoreboard. Games you log are saved on this phone and will sync when it reconnects.", true, "offline");
+  };
+  setTimeout(() => { graceOver = true; updateConnBanner(); }, 8000);
+
+  store.subscribe(
+    (games) => {
+      state.games = games.sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : (b.createdAt || 0) - (a.createdAt || 0)));
+      render();
+    },
+    (names) => {
+      state.names = Array.isArray(names) && names.length === 4 ? names : [...DEFAULT_NAMES];
+      render();
+    },
+    (err) => showBanner(`Firebase error: ${err.message}. Check your Firestore rules (see README).`, true),
+    (isOnline) => { online = isOnline; updateConnBanner(); },
+  );
+}
+render();
+boot();
+</script>
+</body>
+</html>
